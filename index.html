@@ -123,6 +123,61 @@ button:hover { background: #6848bc; }
 }
 
 .small { font-size: 12px; color: #888; }
+    
+/* FULL SCREEN REACTION */
+#reactionOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: none;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    text-align: center;
+    padding: 20px;
+    color: white;
+    background: #171326;
+}
+
+#reactionOverlay.show {
+    display: flex;
+    animation: flashBackground 0.35s ease;
+}
+
+#reactionText {
+    font-size: clamp(40px, 10vw, 100px);
+    font-weight: 1000;
+    line-height: 1.15;
+    text-shadow: 5px 5px 0 rgba(0,0,0,.3);
+    animation: popOut 0.55s cubic-bezier(.15,1.7,.4,1);
+}
+
+#reactionEmoji {
+    font-size: clamp(65px, 15vw, 140px);
+    animation: popOut 0.5s cubic-bezier(.15,1.7,.4,1);
+}
+
+@keyframes popOut {
+    0% {
+        transform: scale(0.05) rotate(-15deg);
+        opacity: 0;
+    }
+    70% {
+        transform: scale(1.2) rotate(5deg);
+        opacity: 1;
+    }
+    100% {
+        transform: scale(1) rotate(0);
+        opacity: 1;
+    }
+}
+
+@keyframes flashBackground {
+    0% { opacity: 0; }
+    50% { opacity: 1; }
+    100% { opacity: 1; }
+}
+
 </style>
 </head>
 
@@ -185,6 +240,69 @@ const fallbackWords = [
 ];
 
     
+
+let reactionTimeout;
+
+function playReactionSound(type) {
+    const audio = new (window.AudioContext || window.webkitAudioContext)();
+
+    if (audio.state === "suspended") {
+        audio.resume();
+    }
+
+    const notes = type === "cheat"
+        ? [880, 1175, 1568]
+        : type === "nice"
+        ? [523, 659, 784]
+        : [180, 140, 100];
+
+    notes.forEach((frequency, i) => {
+        const oscillator = audio.createOscillator();
+        const gain = audio.createGain();
+
+        oscillator.connect(gain);
+        gain.connect(audio.destination);
+
+        oscillator.type = type === "funny" ? "sawtooth" : "sine";
+        oscillator.frequency.value = frequency;
+
+        const start = audio.currentTime + i * 0.13;
+
+        gain.gain.setValueAtTime(0.0001, start);
+        gain.gain.exponentialRampToValueAtTime(0.18, start + 0.03);
+        gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.25);
+
+        oscillator.start(start);
+        oscillator.stop(start + 0.27);
+    });
+
+    setTimeout(() => audio.close(), 1200);
+}
+
+function showBigReaction(text, emoji, type) {
+    const overlay = document.getElementById("reactionOverlay");
+
+    clearTimeout(reactionTimeout);
+
+    overlay.style.background =
+        type === "cheat" ? "#721c32" :
+        type === "nice" ? "#176b45" :
+        "#30205f";
+
+    document.getElementById("reactionText").textContent = text;
+    document.getElementById("reactionEmoji").textContent = emoji;
+
+    overlay.classList.remove("show");
+    void overlay.offsetWidth;
+    overlay.classList.add("show");
+
+    playReactionSound(type);
+
+    reactionTimeout = setTimeout(() => {
+        overlay.classList.remove("show");
+    }, 2000);
+}
+
 function reactToGuess(guess, attemptNumber) {
     let green = 0;
     let grey = 0;
@@ -197,19 +315,26 @@ function reactToGuess(guess, attemptNumber) {
         }
     }
 
-    const reaction = document.getElementById("reaction");
-
     if (attemptNumber === 1 && green >= 4) {
-        reaction.textContent = "🤨 CHEATING?! HOW DID YOU KNOW?! 😈";
-    } 
+        showBigReaction(
+            "CHEATING?!Definitely lmao",
+            "🤨😈",
+            "cheat"
+        );
+    }
     else if (attemptNumber === 1 && green >= 2 && green <= 3) {
-        reaction.textContent = "😎 Okay, nice one!";
-    } 
+        showBigReaction(
+            "OKAY, NICE ONE! But don't be proud",
+            "😓",
+            "nice"
+        );
+    }
     else if (grey > 3) {
-        reaction.textContent = "HAHA LMAO 😂😂";
-    } 
-    else {
-        reaction.textContent = "";
+        showBigReaction(
+            "HAHA LMAO!",
+            "😂💀",
+            "funny"
+        );
     }
 }
 
@@ -281,6 +406,8 @@ function logout() {
 }
 
 function newGame() {
+    clearTimeout(reactionTimeout);
+document.getElementById("reactionOverlay").classList.remove("show");
     const words = Array.from(validWords);
     answer = words[Math.floor(Math.random() * words.length)];
     guesses = [];
@@ -441,5 +568,11 @@ document.addEventListener("keydown", event => {
 
 loadDictionary();
 </script>
+    
+<div id="reactionOverlay">
+    <div id="reactionEmoji"></div>
+    <div id="reactionText"></div>
+</div>
+
 </body>
 </html>
