@@ -214,9 +214,15 @@ function login() {
         return;
     }
 
-    if (name.toLowerCase() === "peter wang") {
+    if (name.toLowerCase() === "thomas yam"|| name.toLowerCase() === "kenny ye"){
         document.getElementById("loginMessage").textContent =
-            "User detected, extremely low IQ, denied acces 👿 😈 👿 😈 👿 ";
+            "心酸之人还想玩😂，回家种地“；
+            return;
+    }
+
+    if (name.toLowerCase() === "peter wang" || name.toLowerCase() === "shibo Wang") {
+        document.getElementById("loginMessage").textContent =
+            "User detected, extremely low IQ, access denied 👿 😈 👿 😈 👿 ";
         return;
     }
 
