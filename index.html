@@ -1,0 +1,393 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kevin Ismart | Wordle</title>
+<style>
+* { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: Arial, sans-serif;
+    background: linear-gradient(135deg, #d9f3ff, #f5e1ff, #fff0d9);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    color: #29243b;
+}
+
+.container {
+    background: rgba(255,255,255,.9);
+    width: 100%;
+    max-width: 480px;
+    padding: 28px 20px;
+    border-radius: 24px;
+    box-shadow: 0 12px 40px #766a9925;
+    text-align: center;
+}
+
+h1 {
+    font-size: 34px;
+    margin: 0 0 8px;
+    color: #7755c9;
+}
+
+.subtitle { color: #777; margin-bottom: 20px; }
+
+input {
+    padding: 12px;
+    border: 2px solid #ddd;
+    border-radius: 10px;
+    font-size: 16px;
+    width: 75%;
+    max-width: 250px;
+}
+
+button {
+    border: none;
+    border-radius: 10px;
+    padding: 12px 16px;
+    margin: 5px;
+    background: #8565d8;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+button:hover { background: #6848bc; }
+
+#game { display: none; }
+
+#board {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 7px;
+    max-width: 310px;
+    margin: 22px auto;
+}
+
+.tile {
+    width: 100%;
+    aspect-ratio: 1;
+    border: 2px solid #d8d5df;
+    border-radius: 8px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 25px;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.correct { background: #70b98a; color: white; border-color: #70b98a; }
+.present { background: #e8c65e; color: white; border-color: #e8c65e; }
+.absent { background: #888590; color: white; border-color: #888590; }
+
+#keyboard {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 15px auto;
+}
+
+.keyrow {
+    display: flex;
+    justify-content: center;
+    gap: 4px;
+}
+
+.key {
+    padding: 12px 0;
+    min-width: 27px;
+    flex: 1;
+    max-width: 39px;
+    font-size: 13px;
+    background: #dcd8e8;
+    color: #29243b;
+    border-radius: 6px;
+    margin: 0;
+}
+
+.key.correct { background: #70b98a; color: white; }
+.key.present { background: #e8c65e; color: white; }
+.key.absent { background: #888590; color: white; }
+
+#message {
+    min-height: 25px;
+    font-weight: bold;
+    margin: 12px;
+}
+
+.small { font-size: 12px; color: #888; }
+</style>
+</head>
+
+<body>
+<div class="container">
+    <h1>✨ kevinismart ✨</h1>
+    <p class="subtitle">A colorful Wordle challenge!</p>
+
+    <div id="login">
+        <p>Enter your username to play:</p>
+        <input id="username" placeholder="Your username">
+        <br>
+        <button onclick="login()">Start Playing</button>
+        <p id="loginMessage"></p>
+    </div>
+
+    <div id="game">
+        <p id="welcome"></p>
+        <p>Guess the hidden 5-letter word in 6 tries!</p>
+
+        <div id="board"></div>
+        <div id="keyboard"></div>
+        <div id="message"></div>
+
+        <button onclick="newGame()">New Game</button>
+        <button onclick="logout()">Switch Player</button>
+        <p class="small" id="dictionaryStatus">Loading extra word list...</p>
+    </div>
+</div>
+
+<script>
+const fallbackWords = [
+"apple","grape","beach","bread","chair","cloud","dance",
+"dream","earth","flame","fruit","ghost","green","happy",
+"heart","house","jelly","juice","lemon","light","magic",
+"mango","music","night","ocean","paint","peace","piano",
+"plant","queen","quick","radio","river","robot","round",
+"scale","smile","snake","space","spoon","stars","stone",
+"storm","table","tiger","toast","train","water","world",
+"write","young","zebra","brave","brown","candy","charm",
+"clean","clear","clock","crane","crown","eagle","enjoy",
+"event","faith","fancy","field","final","floor","focus",
+"force","fresh","funny","giant","glass","globe","great",
+"group","guess","honey","human","image","index","input",
+"learn","leaves","lucky","model","money","motor","novel",
+"party","phone","photo","place","power","pride","prize",
+"quiet","ready","relax","reply","rider","scene","sense",
+"share","sharp","shelf","shine","short","sound","sugar",
+"sunny","sweet","teach","thank","theme","thing","think",
+"throw","today","touch","tower","truth","under","value",
+"voice","watch","white","woman","youth"
+];
+
+let validWords = new Set(fallbackWords);
+let answer = "";
+let guesses = [];
+let current = "";
+let finished = false;
+let username = "";
+
+const rows = ["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"];
+
+async function loadDictionary() {
+    try {
+        const response = await fetch(
+            "https://gist.githubusercontent.com/dracos/dd0668f281e685bad51479e5acaadb93/raw/"
+        );
+        if (!response.ok) throw new Error("Dictionary unavailable");
+
+        const text = await response.text();
+        const words = text.match(/\b[a-zA-Z]{5}\b/g) || [];
+
+        words.forEach(word => validWords.add(word.toLowerCase()));
+
+        document.getElementById("dictionaryStatus").textContent =
+            "Extra dictionary loaded! " + validWords.size + " words available.";
+    } catch (error) {
+        document.getElementById("dictionaryStatus").textContent =
+            "Using built-in dictionary. You can still play!";
+    }
+}
+
+function login() {
+    const name = document.getElementById("username").value.trim();
+
+    if (!name) {
+        document.getElementById("loginMessage").textContent =
+            "Please enter a username.";
+        return;
+    }
+
+    if (name.toLowerCase() === "peter wang") {
+        document.getElementById("loginMessage").textContent =
+            "Sorry! This username isn't on the guest list. Please try another username.";
+        return;
+    }
+
+    username = name;
+    document.getElementById("login").style.display = "none";
+    document.getElementById("game").style.display = "block";
+    document.getElementById("welcome").textContent =
+        "Welcome, " + username + "! Good luck!";
+    newGame();
+}
+
+function logout() {
+    document.getElementById("game").style.display = "none";
+    document.getElementById("login").style.display = "block";
+    document.getElementById("username").value = "";
+    document.getElementById("loginMessage").textContent = "";
+}
+
+function newGame() {
+    const words = Array.from(validWords);
+    answer = words[Math.floor(Math.random() * words.length)];
+    guesses = [];
+    current = "";
+    finished = false;
+    document.getElementById("message").textContent = "";
+    drawBoard();
+    drawKeyboard();
+}
+
+function drawBoard() {
+    const board = document.getElementById("board");
+    board.innerHTML = "";
+
+    for (let r = 0; r < 6; r++) {
+        for (let c = 0; c < 5; c++) {
+            const tile = document.createElement("div");
+            tile.className = "tile";
+
+            if (guesses[r]) {
+                tile.textContent = guesses[r][c];
+                tile.classList.add(getColor(guesses[r], c));
+            } else if (r === guesses.length && current[c]) {
+                tile.textContent = current[c];
+            }
+
+            board.appendChild(tile);
+        }
+    }
+}
+
+function getColor(word, index) {
+    const letter = word[index];
+
+    if (answer[index] === letter) return "correct";
+    if (answer.includes(letter)) return "present";
+    return "absent";
+}
+
+function drawKeyboard() {
+    const keyboard = document.getElementById("keyboard");
+    keyboard.innerHTML = "";
+
+    rows.forEach(row => {
+        const line = document.createElement("div");
+        line.className = "keyrow";
+
+        row.split("").forEach(letter => {
+            const key = document.createElement("button");
+            key.className = "key";
+            key.textContent = letter;
+            key.onclick = () => addLetter(letter);
+            line.appendChild(key);
+        });
+
+        keyboard.appendChild(line);
+    });
+
+    const bottom = document.createElement("div");
+    bottom.className = "keyrow";
+
+    const enter = document.createElement("button");
+    enter.className = "key";
+    enter.textContent = "ENTER";
+    enter.style.maxWidth = "65px";
+    enter.onclick = submitGuess;
+
+    const back = document.createElement("button");
+    back.className = "key";
+    back.textContent = "⌫";
+    back.onclick = deleteLetter;
+
+    bottom.append(enter, back);
+    keyboard.appendChild(bottom);
+}
+
+function addLetter(letter) {
+    if (finished || current.length >= 5) return;
+    current += letter.toLowerCase();
+    drawBoard();
+}
+
+function deleteLetter() {
+    if (finished) return;
+    current = current.slice(0, -1);
+    drawBoard();
+}
+
+function submitGuess() {
+    if (finished) return;
+
+    if (current.length !== 5) {
+        showMessage("Enter a 5-letter word!");
+        return;
+    }
+
+    if (!validWords.has(current)) {
+        showMessage("That word isn't in the dictionary!");
+        return;
+    }
+
+    guesses.push(current);
+    const guess = current;
+    current = "";
+    drawBoard();
+    updateKeyboard(guess);
+
+    if (guess === answer) {
+        finished = true;
+        showMessage("🎉 Excellent! You got it!");
+    } else if (guesses.length === 6) {
+        finished = true;
+        showMessage("The word was " + answer.toUpperCase() + ". Try again!");
+    } else {
+        showMessage((6 - guesses.length) + " guesses remaining.");
+    }
+}
+
+function updateKeyboard(word) {
+    const keys = document.querySelectorAll(".key");
+
+    keys.forEach(key => {
+        const letter = key.textContent.toLowerCase();
+        if (!word.includes(letter)) return;
+
+        const index = word.indexOf(letter);
+        const color = getColor(word, index);
+
+        if (color === "correct" ||
+            (color === "present" && !key.classList.contains("correct"))) {
+            key.classList.remove("absent", "present");
+            key.classList.add(color);
+        } else if (!key.classList.contains("correct") &&
+                   !key.classList.contains("present")) {
+            key.classList.add("absent");
+        }
+    });
+}
+
+function showMessage(message) {
+    document.getElementById("message").textContent = message;
+}
+
+document.addEventListener("keydown", event => {
+    if (document.getElementById("game").style.display === "none") return;
+
+    if (event.key === "Enter") submitGuess();
+    else if (event.key === "Backspace") deleteLetter();
+    else if (/^[a-zA-Z]$/.test(event.key)) addLetter(event.key);
+});
+
+loadDictionary();
+</script>
+</body>
+</html>
