@@ -147,6 +147,14 @@ button:hover { background: #6848bc; }
         <div id="keyboard"></div>
         <div id="message"></div>
 
+        <div id="reaction" style="
+    font-size: 20px;
+    font-weight: bold;
+    color: #8565d8;
+    min-height: 35px;
+    margin: 10px;
+"></div>
+
         <button onclick="newGame()">New Game</button>
         <button onclick="logout()">Switch Player</button>
         <p class="small" id="dictionaryStatus">Loading extra word list...</p>
@@ -175,6 +183,37 @@ const fallbackWords = [
 "throw","today","touch","tower","truth","under","value",
 "voice","watch","white","woman","youth"
 ];
+
+    
+function reactToGuess(guess, attemptNumber) {
+    let green = 0;
+    let grey = 0;
+
+    for (let i = 0; i < 5; i++) {
+        if (guess[i] === answer[i]) {
+            green++;
+        } else if (!answer.includes(guess[i])) {
+            grey++;
+        }
+    }
+
+    const reaction = document.getElementById("reaction");
+
+    if (attemptNumber === 1 && green >= 4) {
+        reaction.textContent = "🤨 CHEATING?! HOW DID YOU KNOW?! 😈";
+    } 
+    else if (attemptNumber === 1 && green >= 2 && green <= 3) {
+        reaction.textContent = "😎 Okay, nice one!";
+    } 
+    else if (grey > 3) {
+        reaction.textContent = "HAHA LMAO 😂😂";
+    } 
+    else {
+        reaction.textContent = "";
+    }
+}
+
+    
 
 let validWords = new Set(fallbackWords);
 let answer = "";
@@ -250,6 +289,7 @@ function newGame() {
     document.getElementById("message").textContent = "";
     drawBoard();
     drawKeyboard();
+    document.getElementById("reaction").textContent = "";
 }
 
 function drawBoard() {
@@ -343,11 +383,17 @@ function submitGuess() {
         return;
     }
 
+  
     guesses.push(current);
-    const guess = current;
-    current = "";
-    drawBoard();
-    updateKeyboard(guess);
+const guess = current;
+
+reactToGuess(guess, guesses.length);
+
+current = "";
+drawBoard();
+updateKeyboard(guess);
+
+    
 
     if (guess === answer) {
         finished = true;
